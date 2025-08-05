@@ -1,0 +1,111 @@
+# Example Bulk Clone Operations
+# This file demonstrates various bulk cloning scenarios
+
+# Complete environment clone
+complete_environment_clone:
+  description: "Clone entire PROD_DATALAKE to create a complete dev environment"
+  databases:
+    - source: "PROD_DATALAKE"
+      target: "DEV_DATALAKE"
+  rbac_apply: true
+  roles_to_grant: ["SR_DATA_READER", "SR_DATA_WRITER", "SFULL_OPERATOR"]
+
+# Specific schemas clone
+analytics_schemas_clone:
+  description: "Clone specific analytics schemas for testing"
+  schemas:
+    - source_db: "PROD_DATALAKE"
+      source_schema: "AAPC"
+      target_db: "TEST_DATALAKE"
+      target_schema: "AAPC"
+    - source_db: "PROD_DATALAKE"
+      source_schema: "ADAPTIVE"
+      target_db: "TEST_DATALAKE"
+      target_schema: "ADAPTIVE"
+  rbac_apply: true
+  roles_to_grant: ["SR_DATA_READER"]
+
+# Specific tables for sandbox
+sandbox_tables_clone:
+  description: "Clone specific tables for sandbox environment"
+  tables:
+    - source_db: "PROD_DATALAKE"
+      source_schema: "AAPC"
+      source_table: "AAPC_APC"
+      target_db: "SANDBOX_DATALAKE"
+      target_schema: "AAPC"
+      target_table: "AAPC_APC"
+    - source_db: "PROD_DATALAKE"
+      source_schema: "ADAPTIVE"
+      source_table: "ACCOUNTS"
+      target_db: "SANDBOX_DATALAKE"
+      target_schema: "ADAPTIVE"
+      target_table: "ACCOUNTS"
+  rbac_apply: true
+  roles_to_grant: ["SR_DATA_READER"]
+
+# Mixed operation example
+mixed_clone_operation:
+  description: "Mixed operation with database, schemas, and tables"
+  databases:
+    - source: "PROD_DATALAKE"
+      target: "STAGING_DATALAKE"
+  
+  schemas:
+    - source_db: "PROD_DATALAKE"
+      source_schema: "AAPC"
+      target_db: "ANALYTICS_DATALAKE"
+      target_schema: "AAPC_ANALYTICS"
+  
+  tables:
+    - source_db: "PROD_DATALAKE"
+      source_schema: "ADAPTIVE"
+      source_table: "ACCOUNTS"
+      target_db: "REPORTING_DATALAKE"
+      target_schema: "ADAPTIVE"
+      target_table: "ACCOUNTS_SNAPSHOT"
+  
+  rbac_apply: true
+  roles_to_grant: ["SR_DATA_READER", "SR_DATA_WRITER"]
+
+# Development environment setup
+dev_environment_setup:
+  description: "Setup development environment with limited access"
+  databases:
+    - source: "PROD_DATALAKE"
+      target: "DEV_DATALAKE"
+  rbac_apply: true
+  roles_to_grant: ["SR_DATA_READER"]
+
+# Quality assurance environment
+qa_environment_setup:
+  description: "Setup QA environment with write access"
+  databases:
+    - source: "PROD_DATALAKE"
+      target: "QA_DATALAKE"
+  rbac_apply: true
+  roles_to_grant: ["SR_DATA_READER", "SR_DATA_WRITER"]
+
+# Training environment with selected schemas
+training_environment:
+  description: "Training environment with selected schemas"
+  schemas:
+    - source_db: "PROD_DATALAKE"
+      source_schema: "AAPC"
+      target_db: "TRAINING_DATALAKE"
+      target_schema: "AAPC"
+    - source_db: "PROD_DATALAKE"
+      source_schema: "ADAPTIVE"
+      target_db: "TRAINING_DATALAKE"
+      target_schema: "ADAPTIVE"
+  rbac_apply: true
+  roles_to_grant: ["SR_DATA_READER"]
+
+# Disaster recovery clone
+disaster_recovery_clone:
+  description: "Disaster recovery clone with full privileges"
+  databases:
+    - source: "PROD_DATALAKE"
+      target: "DR_DATALAKE"
+  rbac_apply: true
+  roles_to_grant: ["SFULL_ADMIN", "SFULL_OPERATOR", "SR_DATA_WRITER", "SR_DATA_READER"]
