@@ -1,0 +1,238 @@
+# Snowflake Zero-Copy Cloning Framework Configuration
+
+# Snowflake Connection Configuration
+snowflake:
+  account: "your_account.snowflakecomputing.com"
+  user: "your_username"
+  password: "your_password"  # Or use key_file for key-pair authentication
+  # key_file: "/path/to/private_key.p8"
+  # passphrase: "your_passphrase"
+  authenticator: "snowflake"  # or "externalbrowser" for SSO
+  warehouse: "COMPUTE_WH"
+  database: "PROD_DATALAKE"
+  schema: "PUBLIC"
+  role: "SYSADMIN"
+
+# Logging Configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: "snowflake_clone.log"
+  max_file_size: "10MB"
+  backup_count: 5
+
+# Cloning Configuration
+cloning:
+  default_clone_type: "ZERO_COPY"  # ZERO_COPY, AT_TIME
+  at_time: null  # "2023-12-01 00:00:00" for point-in-time cloning
+  batch_size: 10  # Number of operations per batch
+  retry_attempts: 3
+  retry_delay: 5  # seconds
+  
+  # Default naming conventions
+  naming:
+    database_suffix: "_CLONE"
+    schema_suffix: "_CLONE"
+    table_suffix: "_CLONE"
+
+# RBAC Configuration
+rbac:
+  # Service Role (SR) Configuration
+  service_roles:
+    - name: "SR_DATA_READER"
+      description: "Service role for data reading operations"
+      privileges:
+        databases:
+          - privilege: "USAGE"
+            objects: ["${TARGET_DATABASE}"]
+        schemas:
+          - privilege: "USAGE"
+            objects: ["${TARGET_DATABASE}.*"]
+        tables:
+          - privilege: "SELECT"
+            objects: ["${TARGET_DATABASE}.*.*"]
+        views:
+          - privilege: "SELECT"
+            objects: ["${TARGET_DATABASE}.*.*"]
+    
+    - name: "SR_DATA_WRITER"
+      description: "Service role for data writing operations"
+      privileges:
+        databases:
+          - privilege: "USAGE"
+            objects: ["${TARGET_DATABASE}"]
+        schemas:
+          - privilege: "USAGE"
+            objects: ["${TARGET_DATABASE}.*"]
+          - privilege: "CREATE TABLE"
+            objects: ["${TARGET_DATABASE}.*"]
+          - privilege: "CREATE VIEW"
+            objects: ["${TARGET_DATABASE}.*"]
+        tables:
+          - privilege: "SELECT"
+            objects: ["${TARGET_DATABASE}.*.*"]
+          - privilege: "INSERT"
+            objects: ["${TARGET_DATABASE}.*.*"]
+          - privilege: "UPDATE"
+            objects: ["${TARGET_DATABASE}.*.*"]
+          - privilege: "DELETE"
+            objects: ["${TARGET_DATABASE}.*.*"]
+
+  # System Full (SFULL) Configuration
+  system_full_roles:
+    - name: "SFULL_ADMIN"
+      description: "System full administrative role"
+      privileges:
+        databases:
+          - privilege: "ALL"
+            objects: ["${TARGET_DATABASE}"]
+        schemas:
+          - privilege: "ALL"
+            objects: ["${TARGET_DATABASE}.*"]
+        tables:
+          - privilege: "ALL"
+            objects: ["${TARGET_DATABASE}.*.*"]
+        views:
+          - privilege: "ALL"
+            objects: ["${TARGET_DATABASE}.*.*"]
+        warehouses:
+          - privilege: "ALL"
+            objects: ["COMPUTE_WH"]
+    
+    - name: "SFULL_OPERATOR"
+      description: "System full operational role"
+      privileges:
+        databases:
+          - privilege: "USAGE"
+            objects: ["${TARGET_DATABASE}"]
+          - privilege: "CREATE SCHEMA"
+            objects: ["${TARGET_DATABASE}"]
+        schemas:
+          - privilege: "ALL"
+            objects: ["${TARGET_DATABASE}.*"]
+        tables:
+          - privilege: "ALL"
+            objects: ["${TARGET_DATABASE}.*.*"]
+        warehouses:
+          - privilege: "USAGE"
+            objects: ["COMPUTE_WH"]
+
+  # Role Hierarchy
+  role_hierarchy:
+    - parent: "SFULL_ADMIN"
+      children: ["SFULL_OPERATOR", "SR_DATA_WRITER", "SR_DATA_READER"]
+    - parent: "SFULL_OPERATOR"
+      children: ["SR_DATA_WRITER"]
+    - parent: "SR_DATA_WRITER"
+      children: ["SR_DATA_READER"]
+
+  # User-Role Assignments
+  user_assignments:
+    # Example assignments - customize based on your needs
+    example_users:
+      - username: "data_analyst@company.com"
+        roles: ["SR_DATA_READER"]
+      - username: "data_engineer@company.com"
+        roles: ["SR_DATA_WRITER"]
+      - username: "system_admin@company.com"
+        roles: ["SFULL_ADMIN"]
+
+# Operation Templates
+operation_templates:
+  # Template for cloning entire PROD_DATALAKE
+  full_prod_clone:
+    description: "Clone entire PROD_DATALAKE database"
+    databases:
+      - source: "PROD_DATALAKE"
+        target: "DEV_DATALAKE"
+    rbac_apply: true
+    roles_to_grant: ["SR_DATA_READER", "SR_DATA_WRITER"]
+
+  # Template for cloning specific schemas
+  schema_clone:
+    description: "Clone specific schemas from PROD_DATALAKE"
+    schemas:
+      - source_db: "PROD_DATALAKE"
+        source_schema: "AAPC"
+        target_db: "TEST_DATALAKE"
+        target_schema: "AAPC"
+      - source_db: "PROD_DATALAKE"
+        source_schema: "ADAPTIVE"
+        target_db: "TEST_DATALAKE"
+        target_schema: "ADAPTIVE"
+    rbac_apply: true
+    roles_to_grant: ["SR_DATA_READER"]
+
+  # Template for cloning specific tables
+  table_clone:
+    description: "Clone specific tables from PROD_DATALAKE"
+    tables:
+      - source_db: "PROD_DATALAKE"
+        source_schema: "AAPC"
+        source_table: "AAPC_APC"
+        target_db: "SANDBOX_DATALAKE"
+        target_schema: "AAPC"
+        target_table: "AAPC_APC"
+      - source_db: "PROD_DATALAKE"
+        source_schema: "ADAPTIVE"
+        source_table: "ACCOUNTS"
+        target_db: "SANDBOX_DATALAKE"
+        target_schema: "ADAPTIVE"
+        target_table: "ACCOUNTS"
+    rbac_apply: true
+    roles_to_grant: ["SR_DATA_READER"]
+
+# Monitoring and Alerting
+monitoring:
+  enabled: true
+  metrics:
+    - clone_success_rate
+    - clone_duration
+    - rbac_application_success
+    - storage_usage
+  
+  alerts:
+    clone_failure_threshold: 0.1  # Alert if more than 10% of clones fail
+    rbac_failure_threshold: 0.05  # Alert if more than 5% of RBAC applications fail
+    
+  notification:
+    email:
+      enabled: false
+      recipients: ["admin@company.com"]
+      smtp_server: "smtp.company.com"
+      smtp_port: 587
+    
+    slack:
+      enabled: false
+      webhook_url: "https://hooks.slack.com/services/..."
+      channel: "#data-ops"
+
+# Security Settings
+security:
+  audit_logging: true
+  encrypt_logs: false
+  sensitive_data_masking: true
+  
+  # IP restrictions for operations
+  allowed_ips:
+    - "10.0.0.0/8"
+    - "192.168.0.0/16"
+  
+  # Time-based restrictions
+  operation_windows:
+    - start_time: "22:00"
+      end_time: "06:00"
+      timezone: "UTC"
+      allowed_operations: ["clone_database", "clone_schema"]
+
+# Performance Tuning
+performance:
+  parallel_operations: 5
+  warehouse_scaling:
+    auto_scale: true
+    min_cluster: 1
+    max_cluster: 3
+  
+  resource_monitors:
+    enabled: true
+    credit_quota: 1000
+    frequency: "DAILY"
